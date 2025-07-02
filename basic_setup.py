@@ -1,16 +1,14 @@
 import os
-from dotenv import load_dotenv
 import json
 import requests
-
-load_dotenv()
 
 #constants
 
 OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
-OPENROUTER_API_BASE = "[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)"
+OPENROUTER_API_BASE = "https://openrouter.ai/api/v1/chat/completions"
+
 NUMBER_GAMES=3
-NUMBER_ROUNDS=20
+NUMBER_ROUNDS=3
 MULTIPLIER=1.6
 POINTS=10
 NEUTRAL_SYS_PROMPT="You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds."
@@ -30,15 +28,15 @@ results=[]
 #main
 
 def run(a_prompt, b_prompt):
-    global a_total, b_total, game_results
+    global a_total, b_total, results
     a_total = 0
     b_total = 0
     rounds_data=[]
     print(f"\n--- Starting Game with A: {a_prompt.capitalize()}, B: {b_prompt.capitalize()} ---")
     sys_a=initialize(a_prompt)
     sys_b=initialize(b_prompt)
-    a_history=[{"role": "system", "content": a_prompt}]
-    b_history=[{"role": "system", "content": b_prompt}]
+    a_history=[{"role": "system", "content": sys_a}]
+    b_history=[{"role": "system", "content": sys_b}]
     for i in range(NUMBER_ROUNDS):
         print(f"\n--- Round {i + 1}/{NUMBER_ROUNDS} ---")
         user_content_a = (
@@ -98,8 +96,8 @@ def run(a_prompt, b_prompt):
         outcome_b = (
             f"In Round {i + 1}, you contributed {b_contribution}. "
             f"The total contribution was {last_total_contribution}. "
-            f"You gained {a_gain} points this round. "
-            f"Your new total accumulated points are {a_total}. "
+            f"You gained {b_gain} points this round. "
+            f"Your new total accumulated points are {b_total}. "
         )
         a_history.append({"role": "user", "content": outcome_a})
         b_history.append({"role": "user", "content": outcome_b})
@@ -155,22 +153,32 @@ def payoff(a_contribution, b_contribution):
     return a_payoff, b_payoff
 
 #call the models
-def call(model_name, messages, temperature, tokens):
+def call(model_name, messages):
     if not OPENROUTER_API_KEY:
         raise ValueError("OPENROUTER_API_KEY environment variable is not set.")
     json_instruction = messages + [
         {"role": "user", "content": "Your response must be a JSON object with two keys: 'reasoning' (string) and 'contribution' (integer between 0 and 10)."}
     ]
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json"
+    }
     payload = {
         "model": model_name,
         "messages": json_instruction,
-        "temperature": temperature,
-        "max_tokens": tokens,
+        "temperature": TEMPERATURE,
+        "max_tokens": MAX_TOKENS,
         "response_format": {"type": "json_object"}
     }
     try:
-        response = requests.post(OPENROUTER_API_BASE, json=payload)
+        response = requests.post(
+            url=OPENROUTER_API_BASE,
+            headers=headers,
+            data=json.dumps(payload)
+        )
+
         response.raise_for_status()
+
         raw_data = response.json()
 
         if raw_data and raw_data.get('choices'):
@@ -179,40 +187,33 @@ def call(model_name, messages, temperature, tokens):
                 parsed_content = json.loads(json_content_str)
                 if "reasoning" in parsed_content and "contribution" in parsed_content:
                     contribution = int(parsed_content["contribution"])
-                    print(f"DEBUG: Model {model_name} raw contribution: {contribution}")
+                    # Ensure contribution is within 0-10 range
                     contribution = max(0, min(10, contribution))
                     return {"reasoning": parsed_content["reasoning"], "contribution": contribution}
                 else:
-                    print(f"Warning: Model {model_name} returned unexpected JSON format: {parsed_content}. Attempting fallback parsing.")
-                    import re
-                    match = re.search(r'\"contribution\":\s*(\d+)', json_content_str)
-                    if match:
-                        fallback_contribution = max(0, min(10, int(match.group(1))))
-                        return {"reasoning": json_content_str, "contribution": fallback_contribution}
-                    else:
-                        print(f"Error: Could not extract contribution from {model_name} response: {json_content_str}")
-                        return {"reasoning": json_content_str, "contribution": 0} # Default to 0 contribution on failure
+                    print(f"Warning: Model {model_name} returned unexpected JSON format for keys: {parsed_content}. Defaulting contribution to 0.")
+                    return {"reasoning": json_content_str, "contribution": 0}
 
             except json.JSONDecodeError:
-                print(f"Error: Model {model_name} did not return valid JSON: {json_content_str}. Attempting fallback parsing.")
+                print(f"Error: Model {model_name} did not return valid JSON: {json_content_str}. Defaulting contribution to 0.")
+                # Attempt to extract contribution even if JSON is malformed
                 import re
-                match = re.search(r'contribution:\s*(\d+)', json_content_str, re.IGNORECASE)
+                match = re.search(r'\"contribution\":\s*(\d+)', json_content_str)
                 if match:
                     fallback_contribution = max(0, min(10, int(match.group(1))))
                     return {"reasoning": json_content_str, "contribution": fallback_contribution}
                 else:
-                    print(f"Error: Could not extract contribution from {model_name} response: {json_content_str}")
                     return {"reasoning": json_content_str, "contribution": 0}
         else:
             print(f"Error: Model {model_name} returned no choices or content: {raw_data}")
-            return {"reasoning": "No response from model.", "contribution": 0}
+            return {"reasoning": "No response from model or empty choices.", "contribution": 0}
 
     except requests.exceptions.RequestException as e:
         print(f"API request error for model {model_name}: {e}")
         if e.response:
             print(f"Response status: {e.response.status_code}")
             print(f"Response body: {e.response.text}")
-        return {"reasoning": f"API error: {e}", "contribution": 0}
+        return {"reasoning": f"API request error: {e}", "contribution": 0}
     except Exception as e:
         print(f"An unexpected error occurred during API call for model {model_name}: {e}")
         return {"reasoning": f"Unexpected error: {e}", "contribution": 0}
@@ -221,12 +222,11 @@ if __name__ == "__main__":
     if not OPENROUTER_API_KEY:
         print("Error: OPENROUTER_API_KEY environment variable is not set.")
     else:
-        #run("neutral", "neutral")
-        print("done")
+        run("collective", "collective")
         output_filename = "game_results.json"
         try:
             with open(output_filename, 'w') as f:
-                json.dump(results, f, indent=4) # indent=4 for pretty-printing
+                json.dump(results, f, indent=4) 
             print(f"\nGame results saved to '{output_filename}'")
         except IOError as e:
             print(f"Error saving results to file: {e}")
