@@ -223,9 +223,9 @@ if __name__ == "__main__":
     if not OPENROUTER_API_KEY:
         print("Error: OPENROUTER_API_KEY environment variable is not set.")
     else:
-        run("neutral", "collective")
-        # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_filename = "self_n_c_4o_sonnet4.json" #{timestamp}
+        run("collective", "collective")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_filename = "self_c_c_4o_sonnet4_{timestamp}.json"
         try:
             with open(output_filename, 'w') as f:
                 json.dump(results, f, indent=4) 
