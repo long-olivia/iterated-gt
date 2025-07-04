@@ -1,11 +1,25 @@
 #!/bin/bash
-source venv/bin/activate
 
-for i in {1..2}
+pairs=(
+  "collective collective"
+  "collective self"
+  "collective neutral"
+  "neutral neutral"
+  "neutral self"
+  "neutral collective"
+  "self self"
+  "self collective"
+  "self neutral"
+)
+
+for pair in "${pairs[@]}"
 do
-    echo "[$i] Running game $i"
-    python basic_setup.py neutral neutral
-    sleep 1
+    for i in {1..2}
+        do
+            echo "Running with: $pair, round $i"
+            python basic_setup.py $pair
+            sleep 1
+        done
 done
 
 deactivate
