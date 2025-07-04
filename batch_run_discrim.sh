@@ -14,10 +14,10 @@ pairs=(
 
 for pair in "${pairs[@]}"
 do
-    for i in {1..1}
+    for i in {1..100}
         do
             echo "Running with: $pair, round $i"
-            python batch_run_discrim.py $pair
+            python self_discrim.py $pair
             sleep 1
         done
 done
