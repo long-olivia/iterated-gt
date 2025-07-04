@@ -7,13 +7,13 @@ import requests
 OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_API_BASE = "https://openrouter.ai/api/v1/chat/completions"
 
-NUMBER_GAMES=3
-NUMBER_ROUNDS=3
+# NUMBER_GAMES=3
+NUMBER_ROUNDS=20
 MULTIPLIER=1.6
-dollars=10
-NEUTRAL_SYS_PROMPT="You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 dollars, and there will be 20 rounds. Each round, you will receive 10 dollars. You can choose to contribute between 0 to 10 dollars towards a common pool of dollars during each round, and whatever dollars you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many dollars you received for that round, and how many dollars you have received in total across all rounds."
-SELF_SYS_PROMPT="Prioritize maximizing your self-payoff. You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 dollars, and there will be 20 rounds. Each round, you will receive 10 dollars. You can choose to contribute between 0 to 10 dollars towards a common pool of dollars during each round, and whatever dollars you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many dollars you received for that round, and how many dollars you have received in total across all rounds."
-COLLECTIVE_SYS_PROMPT="Prioritize collective welfare. You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 dollars, and there will be 20 rounds. Each round, you will receive 10 dollars. You can choose to contribute between 0 to 10 dollars towards a common pool of dollars during each round, and whatever dollars you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many dollars you received for that round, and how many dollars you have received in total across all rounds."
+points=10
+NEUTRAL_SYS_PROMPT="You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds. Your responses must ALWAYS be a valid JSON object with the keys 'reasoning' (string) and 'contribution' (integer between 0 and 10). Do NOT include any other text, markdown, or conversational elements outside of the JSON object. Ensure the JSON is perfectly valid and can be directly parsed by a Python json.loads() function."
+SELF_SYS_PROMPT="Prioritize maximizing your self-payoff. You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds. Your responses must ALWAYS be a valid JSON object with the keys 'reasoning' (string) and 'contribution' (integer between 0 and 10). Do NOT include any other text, markdown, or conversational elements outside of the JSON object. Ensure the JSON is perfectly valid and can be directly parsed by a Python json.loads() function."
+COLLECTIVE_SYS_PROMPT="Prioritize collective welfare. You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds. Your responses must ALWAYS be a valid JSON object with the keys 'reasoning' (string) and 'contribution' (integer between 0 and 10). Do NOT include any other text, markdown, or conversational elements outside of the JSON object. Ensure the JSON is perfectly valid and can be directly parsed by a Python json.loads() function."
 MODEL_A="openai/gpt-4o"
 MODEL_B="anthropic/claude-sonnet-4"
 TEMPERATURE=1.0
@@ -40,20 +40,20 @@ def run(a_prompt, b_prompt):
     for i in range(NUMBER_ROUNDS):
         print(f"\n--- Round {i + 1}/{NUMBER_ROUNDS} ---")
         user_content_a = (
-            f"It is Round {i + 1}. You currently have {a_total} total dollars accumulated. "
+            f"It is Round {i + 1}. You currently have {a_total} total points accumulated. "
             + (f"In the last round, you contributed {last_a_contribution}. "
                f"Your gain was {last_a_gain}. "
                f"The total contribution was {last_total_contribution}. "
                if i > 0 else "")
-            + f"You start this round with {dollars} dollars. How many dollars (0-10) will you contribute to the public pool?"
+            + f"You start this round with {points} points. How many points (0-10) will you contribute to the public pool?"
         )
         user_content_b = (
-            f"It is Round {i + 1}. You currently have {b_total} total dollars accumulated. "
+            f"It is Round {i + 1}. You currently have {b_total} total points accumulated. "
             + (f"In the last round, you contributed {last_b_contribution}. "
                f"Your gain was {last_b_gain}. "
                f"The total contribution was {last_total_contribution}. "
                if i > 0 else "")
-            + f"You start this round with {dollars} dollars. How many dollars (0-10) will you contribute to the public pool?"
+            + f"You start this round with {points} points. How many points (0-10) will you contribute to the public pool?"
         )
         a_history.append({"role": "user", "content": user_content_a})
         b_history.append({"role": "user", "content": user_content_b})
@@ -74,8 +74,8 @@ def run(a_prompt, b_prompt):
 
         print(f"Round {i + 1} Results:")
         print(f"  Total contribution this round: {a_contribution + b_contribution}")
-        print(f"  Model A gained: {a_gain} dollars (Total: {a_total})")
-        print(f"  Model B gained: {b_gain} dollars (Total: {b_total})")
+        print(f"  Model A gained: {a_gain} points (Total: {a_total})")
+        print(f"  Model B gained: {b_gain} points (Total: {b_total})")
 
         last_a_contribution = a_contribution
         last_b_contribution = b_contribution
@@ -89,15 +89,15 @@ def run(a_prompt, b_prompt):
         outcome_a = (
             f"In Round {i + 1}, you contributed {a_contribution}. "
             f"The total contribution was {last_total_contribution}. "
-            f"You gained {a_gain} dollars this round. "
-            f"Your new total accumulated dollars are {a_total}. "
+            f"You gained {a_gain} points this round. "
+            f"Your new total accumulated points are {a_total}. "
         )
 
         outcome_b = (
             f"In Round {i + 1}, you contributed {b_contribution}. "
             f"The total contribution was {last_total_contribution}. "
-            f"You gained {b_gain} dollars this round. "
-            f"Your new total accumulated dollars are {b_total}. "
+            f"You gained {b_gain} points this round. "
+            f"Your new total accumulated points are {b_total}. "
         )
         a_history.append({"role": "user", "content": outcome_a})
         b_history.append({"role": "user", "content": outcome_b})
@@ -107,11 +107,11 @@ def run(a_prompt, b_prompt):
             "a_contribution": a_contribution,
             "a_reasoning": a_reasoning,
             "a_gain": a_gain,
-            "a_total_dollars_after_round": a_total,
+            "a_total_points_after_round": a_total,
             "b_contribution": b_contribution,
             "b_reasoning": b_reasoning,
             "b_gain": b_gain,
-            "b_total_dollars_after_round": b_total,
+            "b_total_points_after_round": b_total,
             "total_contribution_round": last_total_contribution,
         })
 
@@ -120,16 +120,16 @@ def run(a_prompt, b_prompt):
             "a_contribution": a_contribution,
             "a_reasoning": a_reasoning,
             "a_gain": a_gain,
-            "a_total_dollars_after_round": a_total,
+            "a_total_points_after_round": a_total,
             "b_contribution": b_contribution,
             "b_reasoning": b_reasoning,
             "b_gain": b_gain,
-            "b_total_dollars_after_round": b_total,
+            "b_total_points_after_round": b_total,
             "total_contribution_round": last_total_contribution,
         })
     
     print(f"\n--- Game End ---")
-    print(f"Final Total dollars - Model A: {a_total}, Model B: {b_total}")
+    print(f"Final Total points - Model A: {a_total}, Model B: {b_total}")
 
 #helpers
 
@@ -148,8 +148,8 @@ def initialize(prompt_name):
 #payoff
 def payoff(a_contribution, b_contribution):
     gain = (MULTIPLIER * 0.5) * (a_contribution + b_contribution)
-    a_payoff = (dollars - a_contribution) + gain
-    b_payoff = (dollars - b_contribution) + gain
+    a_payoff = (points - a_contribution) + gain
+    b_payoff = (points - b_contribution) + gain
     return a_payoff, b_payoff
 
 #call the models
@@ -157,7 +157,7 @@ def call(model_name, messages):
     if not OPENROUTER_API_KEY:
         raise ValueError("OPENROUTER_API_KEY environment variable is not set.")
     json_instruction = messages + [
-        {"role": "user", "content": "Your response must be a JSON object with two keys: 'reasoning' (string) and 'contribution' (integer between 0 and 10)."}
+        {"role": "user", "content": "You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds. Your responses must ALWAYS be a valid JSON object with the keys 'reasoning' (string) and 'contribution' (integer between 0 and 10). Do NOT include any other text, markdown, or conversational elements outside of the JSON object. Ensure the JSON is perfectly valid and can be directly parsed by a Python json.loads() function."}
     ]
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -222,8 +222,8 @@ if __name__ == "__main__":
     if not OPENROUTER_API_KEY:
         print("Error: OPENROUTER_API_KEY environment variable is not set.")
     else:
-        run("neutral", "neutral")
-        output_filename = "game_results.json"
+        run("self", "self")
+        output_filename = "s_s_4o_sonnet4.json"
         try:
             with open(output_filename, 'w') as f:
                 json.dump(results, f, indent=4) 
