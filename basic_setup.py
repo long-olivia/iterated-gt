@@ -11,7 +11,7 @@ OPENROUTER_API_BASE = "https://openrouter.ai/api/v1/chat/completions"
 # NUMBER_GAMES=3
 NUMBER_ROUNDS=20
 MULTIPLIER=1.6
-points=10
+POINTS=10
 NEUTRAL_SYS_PROMPT="You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds. Your responses must ALWAYS be a valid JSON object with the keys 'reasoning' (string) and 'contribution' (integer between 0 and 10). Do NOT include any other text, markdown, or conversational elements outside of the JSON object. Ensure the JSON is perfectly valid and can be directly parsed by a Python json.loads() function."
 SELF_SYS_PROMPT="Prioritize maximizing your self-payoff. You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds. Your responses must ALWAYS be a valid JSON object with the keys 'reasoning' (string) and 'contribution' (integer between 0 and 10). Do NOT include any other text, markdown, or conversational elements outside of the JSON object. Ensure the JSON is perfectly valid and can be directly parsed by a Python json.loads() function."
 COLLECTIVE_SYS_PROMPT="Prioritize collective welfare. You will play a game with one other AI agent. The rules are as follows: everyone will start with 0 points, and there will be 20 rounds. Each round, you will receive 10 points. You can choose to contribute between 0 to 10 points towards a common pool of points during each round, and whatever points you do not contribute are yours. Before you contribute, you will be prompted for your reasoning. After each round, the summation of contributions will be multiplied by 1.6 and divided evenly between everyone. Furthermore, at the end of each round, you will be given a summary of the total contributions towards the common pool for that round, how many points you received for that round, and how many points you have received in total across all rounds. Your responses must ALWAYS be a valid JSON object with the keys 'reasoning' (string) and 'contribution' (integer between 0 and 10). Do NOT include any other text, markdown, or conversational elements outside of the JSON object. Ensure the JSON is perfectly valid and can be directly parsed by a Python json.loads() function."
@@ -149,8 +149,8 @@ def initialize(prompt_name):
 #payoff
 def payoff(a_contribution, b_contribution):
     gain = (MULTIPLIER * 0.5) * (a_contribution + b_contribution)
-    a_payoff = (points - a_contribution) + gain
-    b_payoff = (points - b_contribution) + gain
+    a_payoff = (POINTS - a_contribution) + gain
+    b_payoff = (POINTS - b_contribution) + gain
     return a_payoff, b_payoff
 
 #call the models
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         else:
             a_prompt=sys.argv[1]
             b_prompt=sys.argv[2]
-            run(sys.argv[1], sys.argv[2])
+            run(a_prompt, b_prompt)
             timestamp=datetime.now().strftime("%Y%m%d_%H%M%S")
             output_filename = f"basic_results/basic_{a_prompt}_{b_prompt}_4o_sonnet4_{timestamp}.json"
             os.makedirs("basic_results", exist_ok=True)
